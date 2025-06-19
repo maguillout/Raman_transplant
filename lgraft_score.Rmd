@@ -1,0 +1,193 @@
+---
+title: "Raman analysis; LGraft Score prediction"
+author: "Maëlle"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    fig_width: 15
+    fig_height: 10
+    toc: yes
+    theme: simplex
+    keep_md: yes
+    always_allow_html: true
+  pdf_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+#rm(list = ls()) 
+source("Z:/PROJETS RAMAN/Code/Code greffon hépatique/Raman_transplant/functions_raman.R")
+knitr::opts_chunk$set(echo = F, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(rstatix)
+library(ggpubr)
+```
+
+## Data preprocessing
+
+```{r Data importation}
+data <- import_sp('TOUS/', 1157)
+
+### Supplementary information ###
+info <- read_excel("Z:/PROJETS RAMAN/Code/Code greffon hépatique/Raman_transplant/cleaned_data_R.xlsx")
+info$l7_high_low <- ifelse(info$L7_groupe %in% c("Gpe1", "Gpe2", "Gpe3"), "Low-risk", "High-risk")
+info$EAD <- ifelse(info$EAD == 1, "EAD", "no EAD")
+```
+
+Some spectra are too noisy to be considered as accurate. The calculation of the 2nd Savitsky-Golay derivative allows the identification of spectra with many oscillations but no real peaks.To quantify the oscillations: the mean and standard-deviation of the 2nd Savitsky-Golay derivative were calculated. Spectra with an high mean and a low standard-deviation were removed from the dataset.
+
+```{r}
+data2 <- filter_noised_spectra(data)
+```
+
+Only two regions of interest in the spectra were selected:
+
+-   Z1: The 700-1800 region, corresponding to the sample fingerprint.
+
+-   Z2: The 2800-300 region, corresponding to the C-H groups, also named high wavenumber region
+
+-   The remaining zones are called silent zones, the signal contains mostly noise.
+
+For all the spectra, these two regions were normalized using the standard normal variate method.
+
+```{r}
+### SPLIT BY ZONE ###
+z1 <- data2[,220:700]
+z1_n <- normalize(z1)
+
+z2 <- data2[,1300:1450]
+z2_n <- normalize(z2)
+```
+
+## Correlation with L-GrAFT7 score
+
+```{r}
+groups <- get_varY(data2, info, 'L7_groupe')
+
+avg1 <- compute_average_factor(z1_n, groups)
+plot_spectra1(avg1, titre="Average Raman spectra (fingerprint region) across L-GrAFT7 score groups")
+
+
+plot_spectra1(avg1)
+
+avg2 <- compute_average_factor(z2_n, groups)
+plot_spectra1(avg2, titre="Average Raman spectra (high wavenumber region) across L-GrAFT7 score groups")
+plot_spectra1(avg2)
+```
+
+```{r}
+ratio_lipids_prot <- ratio_2_pics(z2_n, 2928, 2854)
+ratio_lipids_prot$Group <- groups
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   ) + ggtitle("Distribution of Proteins/Lipids ratio values across L-GrAFT7 score groups")
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete() + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +
+  theme_classic() +
+  theme(
+    axis.title.x = element_text(size=14, face="bold", colour = "black"),    
+    axis.title.y = element_text(size=14, face="bold", colour = "black"),    
+    axis.text.x = element_text(size=12, face="bold", colour = "black"), 
+    axis.text.y = element_text(size=12, face="bold", colour = "black"),
+    strip.text.x = element_text(size = 10, face="bold", colour = "black" ),
+    strip.text.y = element_text(size = 10, face="bold", colour = "black")
+  )
+
+```
+
+
+
+
+## Correlation with L-GrAFT10 score
+
+```{r}
+groups <- get_varY(data2, info, 'L10_gpe')
+
+avg1 <- compute_average_factor(z1_n, groups)
+plot_spectra1(avg1, titre="Average Raman spectra (fingerprint region) across L-GrAFT10 score groups")
+
+
+plot_spectra1(avg1)
+
+avg2 <- compute_average_factor(z2_n, groups)
+plot_spectra1(avg2, titre="Average Raman spectra (high wavenumber region) across L-GrAFT10 score groups")
+
+plot_spectra1(avg2)
+```
+
+```{r}
+ratio_lipids_prot <- ratio_2_pics(z2_n, 2928, 2854)
+ratio_lipids_prot$Group <- groups
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete() + ggtitle("Distribution of Proteins/Lipids ratio values across L-GrAFT10 score groups")
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   ) 
+
+
+```
+
+## Correlation with High risk - low Risk
+
+High risk: L7 Score groups : 4, 5, 6, 7
+Low risk: L7 Score groups : 1, 2, 3
+
+```{r}
+groups <- get_varY(data2, info, 'l7_high_low')
+
+avg1 <- compute_average_factor(z1_n, groups)
+plot_spectra1(avg1, c("royalblue", "tomato"), titre="Average Raman spectra (fingerprint region) across l7_high_low groups")
+
+plot_spectra1(avg1, c("royalblue", "tomato"))
+
+avg2 <- compute_average_factor(z2_n, groups)
+plot_spectra1(avg2, c("royalblue", "tomato"), titre="Average Raman spectra (high wavenumber region) across l7_high_low groups")
+
+plot_spectra1(avg2, c("royalblue", "tomato"))
+```
+
+```{r}
+ratio_lipids_prot <- ratio_2_pics(z2_n, 2928, 2854)
+ratio_lipids_prot$Group <- groups
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   ) + ggtitle("Distribution of Proteins/Lipids ratio values across l7_high_low groups")  + scale_fill_manual(values=c("tomato", "royalblue"))
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   ) +  scale_fill_manual(values=c("tomato", "royalblue"))
+
+```
+
+## Correlation with EAD/ no EAD
+
+
+
+```{r}
+groups <- get_varY(data2, info, 'EAD')
+# groups <- factor(groups, levels = c('EAD', 'no EAD'))
+
+avg1 <- compute_average_factor(z1_n, groups)
+plot_spectra1(avg1, c("royalblue", "tomato"), titre="Average Raman spectra (fingerprint region) across EAD groups")
+
+avg2 <- compute_average_factor(z2_n, groups)
+plot_spectra1(avg2, c("royalblue", "tomato"), titre="Average Raman spectra (high wavenumber region) across EAD groups")
+```
+
+```{r}
+ratio_lipids_prot <- ratio_2_pics(z2_n, 2928, 2854)
+ratio_lipids_prot$Group <- groups
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   )  + scale_fill_manual(values=c("tomato", "royalblue")) + ggtitle("Distribution of Proteins/Lipids ratio values across EAD groups")
+
+ggplot(ratio_lipids_prot, aes(x=Group, y=`Ratio 2928 on 2854`, fill=Group)) + 
+  geom_boxplot(outlier.shape = NA) + scale_y_discrete()  + stat_compare_means(label.y.npc = "bottom", label.x.npc = "center") +   theme_classic() +   theme(     axis.title.x = element_text(size=14, face="bold", colour = "black"),         axis.title.y = element_text(size=14, face="bold", colour = "black"),         axis.text.x = element_text(size=12, face="bold", colour = "black"),      axis.text.y = element_text(size=12, face="bold", colour = "black"),     strip.text.x = element_text(size = 10, face="bold", colour = "black" ),     strip.text.y = element_text(size = 10, face="bold", colour = "black")   )  + scale_fill_manual(values=c("tomato", "royalblue"))
+
+```
+
